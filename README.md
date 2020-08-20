@@ -8,26 +8,26 @@ Easily create a composite console application that forwards calls to other appli
 
 ```json
 {
-	"definitions": [
-		{
-			"name": "myApp",
-			"definitions": [
-				{
-					"name": "verb1",
-					"definitions": [
-						{
-							"name": "verb2",
-							"command": "path/to/application"
-						}
-					]
-				}
-			]
-		},
-		{
-			"name": "otherApp",
-			"command": "path/to/application"
-		}
-	]
+  "definitions": [
+    {
+      "name": "myApp",
+      "definitions": [
+        {
+          "name": "verb1",
+          "definitions": [
+            {
+              "name": "verb2",
+              "command": "path/to/application"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "otherApp",
+      "command": "path/to/application"
+    }
+  ]
 }
 ```
 
