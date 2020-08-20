@@ -22,10 +22,20 @@ namespace CommandForwarder
     {
         private static void Main(string[] args)
         {
+            using var parser = new Parser(settings =>
+            {
+                settings.CaseSensitive = true;
+                settings.AutoHelp = true;
+                settings.AutoVersion = true;
+                settings.HelpWriter = Console.Out;
+
+                settings.EnableDashDash = true;
+            });
+
             try
             {
-                Parser.Default.ParseArguments<Options>(args)
-                        .WithParsed(Run);
+                parser.ParseArguments<Options>(args)
+                    .WithParsed(Run);
             }
             catch (Exception ex)
             {
