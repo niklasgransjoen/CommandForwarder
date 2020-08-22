@@ -1,4 +1,5 @@
 ﻿using DepView.CLI;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
@@ -38,68 +39,106 @@ namespace CommandForwarder
 
         private static bool ValidateConfig(RawConfig rawConfig, [NotNullWhen(true)] out Config? config)
         {
-            if (rawConfig.Definitions is null)
+            if (rawConfig.Verbs is null)
             {
-                ConsoleExt.Error("Configuration contains no definitions.");
+                ConsoleExt.Error("Configuration must contain at least one verb.");
                 config = null;
                 return false;
             }
 
-            if (!ValidateDefinitions(rawConfig.Definitions, out var definitions))
+            var verbNames = CreateNameSet();
+            if (!ValidateVerbs(rawConfig.Verbs, verbNames, out var verbs))
             {
                 config = null;
                 return false;
             }
 
-            config = new Config(definitions);
+            config = new Config(verbs);
             return true;
         }
 
-        private static bool ValidateDefinitions(RawDefinition[] rawDefinitions, out ImmutableArray<Definition> definitions)
+        private static bool ValidateVerbs(RawVerb[]? rawVerbs, HashSet<string> seenNames, out ImmutableArray<Verb> verbs)
         {
-            var usedNames = new HashSet<string>();
-            var builder = ImmutableArray.CreateBuilder<Definition>();
-
-            foreach (var def in rawDefinitions)
+            if (rawVerbs is null)
             {
-                if (string.IsNullOrWhiteSpace(def.Name))
+                verbs = ImmutableArray<Verb>.Empty;
+                return true;
+            }
+
+            var builder = ImmutableArray.CreateBuilder<Verb>();
+
+            foreach (var verb in rawVerbs)
+            {
+                if (string.IsNullOrWhiteSpace(verb.Name))
                 {
-                    ConsoleExt.Warning("Skipping definition without name.");
+                    ConsoleExt.Warning("Skipping verb without name.");
                     continue;
                 }
-                else if (!usedNames.Add(def.Name))
+                else if (!seenNames.Add(verb.Name))
                 {
-                    ConsoleExt.Error($"Duplicate definition name '{def.Name}'.");
+                    ConsoleExt.Error($"Duplicate verb or action name '{verb.Name}'.");
                     return false;
                 }
 
-                if (!string.IsNullOrWhiteSpace(def.Command))
-                {
-                    if (def.Definitions != null)
-                    {
-                        ConsoleExt.Warning("Command and defintion are both specified. Command will be prioritized.");
-                        return false;
-                    }
+                var childrenNames = CreateNameSet();
+                if (!ValidateVerbs(verb.Verbs, childrenNames, out var childVerbs))
+                    return false;
 
-                    builder.Add(new Definition(def.Name, def.Command));
-                }
-                else
-                {
-                    if (def.Definitions is null)
-                    {
-                        ConsoleExt.Error($"Definition '{def.Name}' has neither child definitions nor a command. Definitions must have one of these.");
-                        return false;
-                    }
+                if (!ValidateActions(verb.Actions, childrenNames, out var actions))
+                    return false;
 
-                    if (!ValidateDefinitions(def.Definitions, out var childDefinitions))
-                        return false;
-
-                    builder.Add(new Definition(def.Name, childDefinitions));
-                }
+                var name = verb.Name.Trim();
+                var description = verb.Description?.Trim() ?? string.Empty;
+                builder.Add(new Verb(name, description, childVerbs, actions));
             }
 
-            definitions = builder.ToImmutable();
+            verbs = builder.ToImmutable();
             return true;
         }
+
+        private static bool ValidateActions(RawAction[]? rawActions, HashSet<string> seenNames, out ImmutableArray<Action> actions)
+        {
+            if (rawActions is null)
+            {
+                actions = ImmutableArray<Action>.Empty;
+                return true;
+            }
+
+            var builder = ImmutableArray.CreateBuilder<Action>();
+
+            foreach (var action in rawActions)
+            {
+                if (string.IsNullOrWhiteSpace(action.Name))
+                {
+                    ConsoleExt.Warning("Skipping action without name.");
+                    continue;
+                }
+                else if (string.IsNullOrWhiteSpace(action.Command))
+                {
+                    ConsoleExt.Warning("Skipping action without command.");
+                    continue;
+                }
+                else if (!seenNames.Add(action.Name))
+                {
+                    ConsoleExt.Error($"Duplicate verb or action name '{action.Name}'.");
+                    return false;
+                }
+
+                var name = action.Name.Trim();
+                var description = action.Description?.Trim() ?? string.Empty;
+                var command = action.Command;
+
+                builder.Add(new Action(name, description, command));
+            }
+
+            actions = builder.ToImmutable();
+            return true;
+        }
+
+        #region Utilities
+
+        private static HashSet<string> CreateNameSet() => new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+
+        #endregion Utilities
     }
 }

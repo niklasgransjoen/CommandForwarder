@@ -2,6 +2,6 @@
 {
     internal sealed class RawConfig
     {
-        public RawDefinition[]? Definitions { get; set; }
+        public RawVerb[]? Verbs { get; set; }
     }
 }

@@ -4,11 +4,11 @@ namespace CommandForwarder
 {
     internal sealed class Config
     {
-        public Config(ImmutableArray<Definition> definitions)
+        public Config(ImmutableArray<Verb> verbs)
         {
-            Definitions = definitions;
+            Verbs = verbs;
         }
 
-        public ImmutableArray<Definition> Definitions { get; }
+        public ImmutableArray<Verb> Verbs { get; }
     }
 }

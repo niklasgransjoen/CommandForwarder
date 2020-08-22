@@ -2,6 +2,7 @@
 using DepView.CLI;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 
@@ -12,7 +13,7 @@ namespace CommandForwarder
         public const string DefaultConfig = "config.json";
 
         [Option('c', "config", HelpText = "The full path of the json configuration. A local '" + DefaultConfig + "' is searched for if not specified.")]
-        public string? Definition { get; set; }
+        public string? Config { get; set; }
 
         [Option('a', "args", Separator = ' ', HelpText = "The arguments to process and forward. Once a match is found, all remaining arguments are forwarded.", Required = true, Min = 1)]
         public IEnumerable<string> Args { get; set; } = Enumerable.Empty<string>();
@@ -46,19 +47,19 @@ namespace CommandForwarder
 
         private static void Run(Options options)
         {
-            var config = ConfigurationManager.ReadConfig(options.Definition);
+            var config = ConfigurationManager.ReadConfig(options.Config);
             if (config is null)
                 return;
 
-            var definitions = config.Definitions;
+            var verbs = config.Verbs;
+            var actions = ImmutableArray<Action>.Empty;
             var args = options.Args.ToArray();
-            ProcessArguments(definitions, args);
+
+            ProcessArguments(verbs, actions, args);
         }
 
-        private static void ProcessArguments(IReadOnlyList<Definition> definitions, Span<string> args)
+        private static void ProcessArguments(ImmutableArray<Verb> verbs, ImmutableArray<Action> actions, Span<string> args)
         {
-            var definitionLookup = definitions.ToDictionary(d => d.Name, StringComparer.InvariantCultureIgnoreCase);
-
             if (args.Length == 0)
             {
                 ConsoleExt.Error("No match found (out of arguments).");
@@ -68,31 +69,46 @@ namespace CommandForwarder
             var arg = args[0];
             var forwaredArgs = args.Slice(1);
 
-            if (!definitionLookup.TryGetValue(arg, out var matchedDefinition))
+            if (TryMatchAction(actions, arg, forwaredArgs))
+                return;
+
+            var verbLookup = verbs.ToDictionary(v => v.Name, StringComparer.InvariantCultureIgnoreCase);
+            if (!verbLookup.TryGetValue(arg, out var matchedVerb))
             {
-                ConsoleExt.Error($"No match found (argument '{arg}' did not match any defintion).");
-            }
-            else if (matchedDefinition.Command != null)
-            {
-                ExecuteCommand(matchedDefinition.Command, forwaredArgs);
+                ConsoleExt.Error($"No match found (argument '{arg}' did not match any verbs or actions).");
             }
             else if (forwaredArgs.Length > 0)
             {
-                ProcessArguments(matchedDefinition.Definitions, forwaredArgs);
+                ProcessArguments(matchedVerb.Verbs, matchedVerb.Actions, forwaredArgs);
             }
             else
             {
-                ConsoleExt.Error($"No match found (argument '{arg}' does not have a command, but contains other definitions. Are you missing an argument?).");
+                ConsoleExt.Error($"No match found (argument '{arg}' matched a verb. Are you missing an argument?).");
             }
         }
 
-        private static void ExecuteCommand(string command, Span<string> args)
+        private static bool TryMatchAction(ImmutableArray<Action> actions, string arg, Span<string> forwaredArgs)
+        {
+            if (actions.IsEmpty)
+                return false;
+
+            var actionLookup = actions.ToDictionary(c => c.Name, StringComparer.InvariantCultureIgnoreCase);
+            if (actionLookup.TryGetValue(arg, out var matchedAction))
+            {
+                ExecuteAction(matchedAction, forwaredArgs);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void ExecuteAction(Action action, Span<string> args)
         {
             try
             {
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = command,
+                    FileName = action.Command,
                 };
 
                 foreach (var arg in args)
@@ -105,7 +121,7 @@ namespace CommandForwarder
             }
             catch (Exception ex)
             {
-                ConsoleExt.Error($"Failed to execute command '{command}'.", ex);
+                ConsoleExt.Error($"Failed to execute action '{action.Name}'.", ex);
             }
         }
     }
