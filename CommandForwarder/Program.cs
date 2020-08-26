@@ -1,9 +1,8 @@
 ﻿using CommandLine;
-using DepView.CLI;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 
 namespace CommandForwarder
@@ -19,7 +18,7 @@ namespace CommandForwarder
         public IEnumerable<string> Args { get; set; } = Enumerable.Empty<string>();
     }
 
-    internal static class Program
+    internal sealed class Program
     {
         private static void Main(string[] args)
         {
@@ -30,98 +29,67 @@ namespace CommandForwarder
                 settings.AutoVersion = true;
                 settings.HelpWriter = Console.Out;
 
+                // Allow escaping commands
                 settings.EnableDashDash = true;
             });
 
             try
             {
                 parser.ParseArguments<Options>(args)
-                    .WithParsed(Run);
+                    .WithParsed(options => BuildServiceProvider()
+                        .GetRequiredService<Program>()
+                        .Run(options)
+                    );
             }
             catch (Exception ex)
             {
-                ConsoleExt.Error("Unhandled exception", ex);
+                ConsoleExt.Error("Unhandled exception.", ex);
                 throw;
             }
         }
 
-        private static void Run(Options options)
+        private static IServiceProvider BuildServiceProvider()
+        {
+            return new ServiceCollection()
+                .AddTransient<Program>()
+                .AddTransient<IArgumentProcessor, ArgumentProcessor>()
+                .AddTransient<IActionExecutor, ActionExecutor>()
+                .BuildServiceProvider();
+        }
+
+        private readonly IArgumentProcessor _argumentProcessor;
+        private readonly IActionExecutor _actionExecutor;
+
+        public Program(IArgumentProcessor argumentProcessor, IActionExecutor actionExecutor)
+        {
+            _argumentProcessor = argumentProcessor;
+            _actionExecutor = actionExecutor;
+        }
+
+        private void Run(Options options)
         {
             var config = ConfigurationManager.ReadConfig(options.Config);
             if (config is null)
                 return;
 
-            var verbs = config.Verbs;
-            var actions = ImmutableArray<Action>.Empty;
-            var args = options.Args.ToArray();
+            var proxyVerb = new Verb("root", string.Empty, config.Verbs, ImmutableArray<Action>.Empty);
+            var args = options.Args;
 
-            ProcessArguments(verbs, actions, args);
-        }
-
-        private static void ProcessArguments(ImmutableArray<Verb> verbs, ImmutableArray<Action> actions, Span<string> args)
-        {
-            if (args.Length == 0)
-            {
-                ConsoleExt.Error("No match found (out of arguments).");
-                return;
-            }
-
-            var arg = args[0];
-            var forwaredArgs = args.Slice(1);
-
-            if (TryMatchAction(actions, arg, forwaredArgs))
-                return;
-
-            var verbLookup = verbs.ToDictionary(v => v.Name, StringComparer.InvariantCultureIgnoreCase);
-            if (!verbLookup.TryGetValue(arg, out var matchedVerb))
-            {
-                ConsoleExt.Error($"No match found (argument '{arg}' did not match any verbs or actions).");
-            }
-            else if (forwaredArgs.Length > 0)
-            {
-                ProcessArguments(matchedVerb.Verbs, matchedVerb.Actions, forwaredArgs);
-            }
-            else
-            {
-                ConsoleExt.Error($"No match found (argument '{arg}' matched a verb. Are you missing an argument?).");
-            }
-        }
-
-        private static bool TryMatchAction(ImmutableArray<Action> actions, string arg, Span<string> forwaredArgs)
-        {
-            if (actions.IsEmpty)
-                return false;
-
-            var actionLookup = actions.ToDictionary(c => c.Name, StringComparer.InvariantCultureIgnoreCase);
-            if (actionLookup.TryGetValue(arg, out var matchedAction))
-            {
-                ExecuteAction(matchedAction, forwaredArgs);
-                return true;
-            }
-
-            return false;
-        }
-
-        private static void ExecuteAction(Action action, Span<string> args)
-        {
             try
             {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = action.Command,
-                };
+                var result = _argumentProcessor.ProcessArguments(proxyVerb, args);
 
-                foreach (var arg in args)
-                {
-                    startInfo.ArgumentList.Add(arg);
-                }
-
-                var process = Process.Start(startInfo);
-                process.WaitForExit();
+                var action = result.Action;
+                var commandArgs = args.Skip(result.ConsumedArguments);
+                _actionExecutor.Execute(action, commandArgs);
             }
-            catch (Exception ex)
+            catch (ArgumentProcessException ex)
             {
-                ConsoleExt.Error($"Failed to execute action '{action.Name}'.", ex);
+                ConsoleExt.Error(ex.Message);
+            }
+            catch (ActionExecutionException ex)
+            {
+                ConsoleExt.Error(ex.Message);
             }
         }
     }

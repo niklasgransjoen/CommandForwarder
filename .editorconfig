@@ -59,3 +59,6 @@ dotnet_naming_symbols.interface_symbols.applicable_accessibilities = *
 
 dotnet_naming_rule.interfaces_begins_with_i.style = interface_pascal_case
 dotnet_naming_rule.interfaces_begins_with_i.severity = suggestion
+
+# CA1812: Avoid uninstantiated internal classes
+dotnet_diagnostic.CA1812.severity = none

@@ -1,5 +1,4 @@
-﻿using DepView.CLI;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
@@ -87,8 +86,8 @@ namespace CommandForwarder
                 if (!ValidateActions(verb.Actions, childrenNames, out var actions))
                     return false;
 
-                var name = verb.Name.Trim();
-                var description = verb.Description?.Trim() ?? string.Empty;
+                var name = ParseString(verb.Name);
+                var description = ParseString(verb.Description);
                 builder.Add(new Verb(name, description, childVerbs, actions));
             }
 
@@ -124,8 +123,8 @@ namespace CommandForwarder
                     return false;
                 }
 
-                var name = action.Name.Trim();
-                var description = action.Description?.Trim() ?? string.Empty;
+                var name = ParseString(action.Name);
+                var description = ParseString(action.Description);
                 var command = action.Command;
 
                 builder.Add(new Action(name, description, command));
@@ -138,6 +137,8 @@ namespace CommandForwarder
         #region Utilities
 
         private static HashSet<string> CreateNameSet() => new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+
+        private static string ParseString(string? str) => str?.Trim() ?? string.Empty;
 
         #endregion Utilities
     }
