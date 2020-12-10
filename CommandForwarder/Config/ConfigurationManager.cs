@@ -13,7 +13,10 @@ namespace CommandForwarder
         {
             var configPath = path ?? Path.Combine(Directory.GetCurrentDirectory(), Options.DefaultConfig);
             if (!File.Exists(configPath))
-                ConsoleExt.Error($"Failed to resolve config '{configPath}'.");
+            {
+                ConsoleExt.Error($"Configuration file '{configPath}' does not exist.");
+                return null;
+            }
 
             RawConfig? rawConfig;
             try
