@@ -8,16 +8,18 @@ Easily create a composite console application that forwards calls to other appli
 
 ```json
 {
-  "definitions": [
+  "verbs": [
     {
       "name": "myApp",
-      "definitions": [
+      "description": "description of the contents of this verb",
+      "verbs": [
         {
-          "name": "verb1",
-          "definitions": [
+          "name": "subVerb",
+          "actions": [
             {
-              "name": "verb2",
-              "command": "path/to/application"
+              "name": "action",
+              "command": "path/to/application",
+              "description": "description of what this command will do"
             }
           ]
         }
@@ -34,13 +36,13 @@ Easily create a composite console application that forwards calls to other appli
 Usage:
 
 ```bat
-CommandForwarder.exe -c path/to/config -a myApp verb1 verb2 "arguments" "to" "forward"
+CommandForwarder.exe -c path/to/config -a myApp subVerb action "arguments" "to" "forward"
 ```
 
 Or (for Windows) create a batch file or similar like the following that's available in PATH:
 
 ```bat
-:: startMyApp.bat
+:: myApp.bat
 
 @echo off
 CommandForwarder.exe -c path/to/config -a myApp %*
@@ -49,5 +51,5 @@ CommandForwarder.exe -c path/to/config -a myApp %*
 And use it as follows from everywhere:
 
 ```bat
-startMyApp verb1 verb2 "arguments" "to" "forward"
+myApp subVerb action "arguments" "to" "forward"
 ```
