@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace CommandForwarder
@@ -21,17 +19,7 @@ namespace CommandForwarder
         }
     }
 
-    internal sealed class ArgumentProcessResult
-    {
-        public ArgumentProcessResult(Action action, int consumedArguments)
-        {
-            Action = action;
-            ConsumedArguments = consumedArguments;
-        }
-
-        public Action Action { get; }
-        public int ConsumedArguments { get; }
-    }
+    internal sealed record ArgumentProcessResult(Action Action, int ConsumedArguments);
 
     internal interface IArgumentProcessor
     {
@@ -54,13 +42,14 @@ namespace CommandForwarder
             {
                 consumedArgumentCount++;
 
-                if (TryMatchAction(current.Actions, arg, out var matchedAction))
+                var matchedAction = current.Actions.FirstOrDefault(a => a.Name.Equals(arg, StringComparison.InvariantCultureIgnoreCase));
+                if (matchedAction is not null)
                 {
                     return new ArgumentProcessResult(matchedAction, consumedArgumentCount);
                 }
 
-                var verbLookup = current.Verbs.ToDictionary(v => v.Name, StringComparer.InvariantCultureIgnoreCase);
-                if (!verbLookup.TryGetValue(arg, out var matchedVerb))
+                var matchedVerb = current.Verbs.FirstOrDefault(v => v.Name.Equals(arg, StringComparison.InvariantCultureIgnoreCase));
+                if (matchedVerb is null)
                 {
                     throw new ArgumentProcessException($"No match found (argument '{arg}' did not match any verbs or actions).");
                 }
@@ -69,23 +58,6 @@ namespace CommandForwarder
             }
 
             throw new ArgumentProcessException($"No match found (out of arguments).");
-        }
-
-        private static bool TryMatchAction(ImmutableArray<Action> actions, string arg, [NotNullWhen(true)] out Action? matchedAction)
-        {
-            if (actions.IsEmpty)
-            {
-                matchedAction = null;
-                return false;
-            }
-
-            var actionLookup = actions.ToDictionary(c => c.Name, StringComparer.InvariantCultureIgnoreCase);
-            if (actionLookup.TryGetValue(arg, out matchedAction))
-            {
-                return true;
-            }
-
-            return false;
         }
     }
 }
