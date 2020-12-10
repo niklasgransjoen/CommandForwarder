@@ -20,14 +20,20 @@ namespace CommandForwarder
             WriteLine("Warning: " + warning, ConsoleColor.Yellow);
         }
 
-        public static void WriteLine(string value, ConsoleColor foreground)
+        public static void Write(string value, ConsoleColor foreground)
         {
             var oldForeground = Console.ForegroundColor;
             Console.ForegroundColor = foreground;
 
-            Console.WriteLine(value);
+            Console.Write(value);
 
             Console.ForegroundColor = oldForeground;
+        }
+
+        public static void WriteLine(string value, ConsoleColor foreground)
+        {
+            Write(value, foreground);
+            Console.WriteLine();
         }
     }
 }
