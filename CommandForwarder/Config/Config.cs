@@ -2,13 +2,9 @@
 
 namespace CommandForwarder
 {
-    internal sealed class Config
-    {
-        public Config(ImmutableArray<Verb> verbs)
-        {
-            Verbs = verbs;
-        }
+    internal sealed record Config(ImmutableArray<Verb> Verbs);
 
-        public ImmutableArray<Verb> Verbs { get; }
-    }
+    internal sealed record Verb(string Name, string Description, ImmutableArray<Verb> Verbs, ImmutableArray<Action> Actions);
+
+    internal sealed record Action(string Name, string Description, string Command);
 }

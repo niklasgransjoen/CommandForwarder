@@ -18,11 +18,11 @@ namespace CommandForwarder
                 return null;
             }
 
-            RawConfig? rawConfig;
+            Config? rawConfig;
             try
             {
                 var json = File.ReadAllText(configPath);
-                rawConfig = JsonSerializer.Deserialize<RawConfig>(json, new JsonSerializerOptions
+                rawConfig = JsonSerializer.Deserialize<Config>(json, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                 });
@@ -39,18 +39,11 @@ namespace CommandForwarder
             return null;
         }
 
-        private static bool ValidateConfig(RawConfig? rawConfig, [NotNullWhen(true)] out Config? config)
+        private static bool ValidateConfig(Config? rawConfig, [NotNullWhen(true)] out Config? config)
         {
             if (rawConfig is null)
             {
                 ConsoleExt.Error("Config cannot be null.");
-                config = null;
-                return false;
-            }
-
-            if (rawConfig.Verbs is null)
-            {
-                ConsoleExt.Error("Configuration must contain at least one verb.");
                 config = null;
                 return false;
             }
@@ -62,13 +55,20 @@ namespace CommandForwarder
                 return false;
             }
 
+            if (verbs.IsEmpty)
+            {
+                ConsoleExt.Error("Configuration must contain at least one valid verb.");
+                config = null;
+                return false;
+            }
+
             config = new Config(verbs);
             return true;
         }
 
-        private static bool ValidateVerbs(RawVerb[]? rawVerbs, HashSet<string> seenNames, out ImmutableArray<Verb> verbs)
+        private static bool ValidateVerbs(ImmutableArray<Verb> rawVerbs, HashSet<string> seenNames, out ImmutableArray<Verb> verbs)
         {
-            if (rawVerbs is null)
+            if (rawVerbs.IsDefaultOrEmpty)
             {
                 verbs = ImmutableArray<Verb>.Empty;
                 return true;
@@ -76,45 +76,49 @@ namespace CommandForwarder
 
             var builder = ImmutableArray.CreateBuilder<Verb>();
 
-            foreach (var verb in rawVerbs)
+            foreach (var rawVerb in rawVerbs)
             {
-                if (string.IsNullOrWhiteSpace(verb.Name))
+                if (string.IsNullOrWhiteSpace(rawVerb.Name))
                 {
                     ConsoleExt.Warning("Skipping verb without name.");
                     continue;
                 }
-                else if (!seenNames.Add(verb.Name))
+                else if (!seenNames.Add(rawVerb.Name))
                 {
-                    ConsoleExt.Error($"Duplicate verb or action name '{verb.Name}'.");
+                    ConsoleExt.Error($"Duplicate verb or action name '{rawVerb.Name}'.");
                     verbs = default;
                     return false;
                 }
 
                 var childrenNames = CreateNameSet();
-                if (!ValidateVerbs(verb.Verbs, childrenNames, out var childVerbs))
+                if (!ValidateVerbs(rawVerb.Verbs, childrenNames, out var childVerbs))
                 {
                     verbs = default;
                     return false;
                 }
 
-                if (!ValidateActions(verb.Actions, childrenNames, out var actions))
+                if (!ValidateActions(rawVerb.Actions, childrenNames, out var actions))
                 {
                     verbs = default;
                     return false;
                 }
 
-                var name = ParseString(verb.Name);
-                var description = ParseString(verb.Description);
-                builder.Add(new Verb(name, description, childVerbs, actions));
+                builder.Add(rawVerb with
+                {
+                    Name = ParseString(rawVerb.Name),
+                    Description = ParseString(rawVerb.Description),
+                    Verbs = childVerbs,
+                    Actions = actions,
+                });
             }
 
             verbs = builder.ToImmutable();
             return true;
         }
 
-        private static bool ValidateActions(RawAction[]? rawActions, HashSet<string> seenNames, out ImmutableArray<Action> actions)
+        private static bool ValidateActions(ImmutableArray<Action> rawActions, HashSet<string> seenNames, out ImmutableArray<Action> actions)
         {
-            if (rawActions is null)
+            if (rawActions.IsDefaultOrEmpty)
             {
                 actions = ImmutableArray<Action>.Empty;
                 return true;
@@ -122,30 +126,30 @@ namespace CommandForwarder
 
             var builder = ImmutableArray.CreateBuilder<Action>();
 
-            foreach (var action in rawActions)
+            foreach (var rawAction in rawActions)
             {
-                if (string.IsNullOrWhiteSpace(action.Name))
+                if (string.IsNullOrWhiteSpace(rawAction.Name))
                 {
                     ConsoleExt.Warning("Skipping action without name.");
                     continue;
                 }
-                else if (string.IsNullOrWhiteSpace(action.Command))
+                else if (string.IsNullOrWhiteSpace(rawAction.Command))
                 {
                     ConsoleExt.Warning("Skipping action without command.");
                     continue;
                 }
-                else if (!seenNames.Add(action.Name))
+                else if (!seenNames.Add(rawAction.Name))
                 {
-                    ConsoleExt.Error($"Duplicate verb or action name '{action.Name}'.");
+                    ConsoleExt.Error($"Duplicate verb or action name '{rawAction.Name}'.");
                     actions = default;
                     return false;
                 }
 
-                var name = ParseString(action.Name);
-                var description = ParseString(action.Description);
-                var command = action.Command;
-
-                builder.Add(new Action(name, description, command));
+                builder.Add(rawAction with
+                {
+                    Name = ParseString(rawAction.Name),
+                    Description = ParseString(rawAction.Description),
+                });
             }
 
             actions = builder.ToImmutable();
