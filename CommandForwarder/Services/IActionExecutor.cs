@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace CommandForwarder
 {
-    public sealed class ActionExecutionException : Exception
+    internal sealed class ActionExecutionException : Exception
     {
         public ActionExecutionException()
         {

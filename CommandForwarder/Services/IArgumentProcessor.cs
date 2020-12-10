@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace CommandForwarder
 {
-    public sealed class ArgumentProcessException : Exception
+    internal sealed class ArgumentProcessException : Exception
     {
         public ArgumentProcessException()
         {
