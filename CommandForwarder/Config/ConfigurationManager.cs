@@ -22,7 +22,7 @@ namespace CommandForwarder
             try
             {
                 var json = File.ReadAllText(configPath);
-                rawConfig = JsonSerializer.Deserialize<Config>(json, new JsonSerializerOptions
+                rawConfig = JsonSerializer.Deserialize<Config>(json, new()
                 {
                     PropertyNameCaseInsensitive = true,
                 });
@@ -62,7 +62,7 @@ namespace CommandForwarder
                 return false;
             }
 
-            config = new Config(verbs);
+            config = new(verbs);
             return true;
         }
 
@@ -158,7 +158,7 @@ namespace CommandForwarder
 
         #region Utilities
 
-        private static HashSet<string> CreateNameSet() => new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+        private static HashSet<string> CreateNameSet() => new(StringComparer.InvariantCultureIgnoreCase);
 
         private static string ParseString(string? str) => str?.Trim() ?? string.Empty;
 

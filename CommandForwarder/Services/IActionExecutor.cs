@@ -46,7 +46,7 @@ namespace CommandForwarder
 
                 var process = Process.Start(startInfo);
                 if (process is null)
-                    throw new Exception($"For an unknown reason, no process was started with the action '{action.Command}'.");
+                    throw new($"For an unknown reason, no process was started with the action '{action.Command}'.");
 
                 process.WaitForExit();
             }
