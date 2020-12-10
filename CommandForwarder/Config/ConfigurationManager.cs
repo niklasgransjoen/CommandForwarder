@@ -15,7 +15,7 @@ namespace CommandForwarder
             if (!File.Exists(configPath))
                 ConsoleExt.Error($"Failed to resolve config '{configPath}'.");
 
-            RawConfig rawConfig;
+            RawConfig? rawConfig;
             try
             {
                 var json = File.ReadAllText(configPath);
@@ -36,8 +36,15 @@ namespace CommandForwarder
             return null;
         }
 
-        private static bool ValidateConfig(RawConfig rawConfig, [NotNullWhen(true)] out Config? config)
+        private static bool ValidateConfig(RawConfig? rawConfig, [NotNullWhen(true)] out Config? config)
         {
+            if (rawConfig is null)
+            {
+                ConsoleExt.Error("Config cannot be null.");
+                config = null;
+                return false;
+            }
+
             if (rawConfig.Verbs is null)
             {
                 ConsoleExt.Error("Configuration must contain at least one verb.");
@@ -76,15 +83,22 @@ namespace CommandForwarder
                 else if (!seenNames.Add(verb.Name))
                 {
                     ConsoleExt.Error($"Duplicate verb or action name '{verb.Name}'.");
+                    verbs = default;
                     return false;
                 }
 
                 var childrenNames = CreateNameSet();
                 if (!ValidateVerbs(verb.Verbs, childrenNames, out var childVerbs))
+                {
+                    verbs = default;
                     return false;
+                }
 
                 if (!ValidateActions(verb.Actions, childrenNames, out var actions))
+                {
+                    verbs = default;
                     return false;
+                }
 
                 var name = ParseString(verb.Name);
                 var description = ParseString(verb.Description);
@@ -120,6 +134,7 @@ namespace CommandForwarder
                 else if (!seenNames.Add(action.Name))
                 {
                     ConsoleExt.Error($"Duplicate verb or action name '{action.Name}'.");
+                    actions = default;
                     return false;
                 }
 
