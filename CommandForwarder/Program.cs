@@ -44,7 +44,6 @@ namespace CommandForwarder
             catch (Exception ex)
             {
                 ConsoleExt.Error("Unhandled exception.", ex);
-                throw;
             }
         }
 
