@@ -71,7 +71,7 @@ namespace CommandForwarder
             if (config is null)
                 return;
 
-            var proxyVerb = new Verb("root", string.Empty, config.Verbs, ImmutableArray<Action>.Empty);
+            var proxyVerb = new Verb("Root", string.Empty, config.Verbs, ImmutableArray<Action>.Empty);
             var args = options.Args;
 
             try
@@ -84,6 +84,8 @@ namespace CommandForwarder
             }
             catch (ArgumentProcessException ex)
             {
+                VerbConsolePrinter.PrintHelpText(ex.CurrentVerb);
+                Console.WriteLine();
                 ConsoleExt.Error(ex.Message);
             }
             catch (ActionExecutionException ex)
