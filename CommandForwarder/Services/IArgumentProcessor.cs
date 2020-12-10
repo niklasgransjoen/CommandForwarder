@@ -6,17 +6,12 @@ namespace CommandForwarder
 {
     internal sealed class ArgumentProcessException : Exception
     {
-        public ArgumentProcessException()
+        public ArgumentProcessException(string message, Verb currentVerb) : base(message)
         {
+            CurrentVerb = currentVerb;
         }
 
-        public ArgumentProcessException(string message) : base(message)
-        {
-        }
-
-        public ArgumentProcessException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
+        public Verb CurrentVerb { get; }
     }
 
     internal sealed record ArgumentProcessResult(Action Action, int ConsumedArguments);
@@ -51,13 +46,13 @@ namespace CommandForwarder
                 var matchedVerb = current.Verbs.FirstOrDefault(v => v.Name.Equals(arg, StringComparison.InvariantCultureIgnoreCase));
                 if (matchedVerb is null)
                 {
-                    throw new ArgumentProcessException($"No match found (argument '{arg}' did not match any verbs or actions).");
+                    throw new ArgumentProcessException($"No match found (argument '{arg}' did not match any verbs or actions).", current);
                 }
 
                 current = matchedVerb;
             }
 
-            throw new ArgumentProcessException($"No match found (out of arguments).");
+            throw new ArgumentProcessException($"No match found (out of arguments).", current);
         }
     }
 }
